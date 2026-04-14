@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>My Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Header -->
+      <div class="app-header">
+        <div class="header-left">
+          <button class="back-btn" id="backBtn">←</button>
+          <h1 class="header-title" id="pageTitle">My Home</h1>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn" onclick="window.location.href='/setup'" title="Add Device">➕</button>
+          <button class="icon-btn" onclick="window.location.href='/logout'" title="Logout">🚪</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Home View -->
+        <div id="homeView">
+          <!-- Status Banner -->
+          <div class="status-banner">
+            <h2>All Devices</h2>
+            <p>
+              <span class="status-indicator {{ 'online' if device_online == 'online' else 'offline' if device_online == 'offline' else 'unknown' }}"></span>
+              {{ rooms|length }} {{ 'room' if rooms|length == 1 else 'rooms' }} •
+              {% set device_count = by_room.values()|map('length')|sum %}
+              {{ device_count }} {{ 'device' if device_count == 1 else 'devices' }}
+            </p>
+          </div>
+
+          <!-- Status Cards (System Status Only) -->
+          <div class="status-card" style="margin-bottom: 24px;">
+            <h3>⚙️ System Status</h3>
+            <div class="status-row">
+              <span class="status-label">MQTT Broker</span>
+              <span class="status-pill {{ 'online' if broker_connected else 'offline' }}" id="brokerStatus">
+                {{ 'Connected' if broker_connected else 'Disconnected' }}
+              </span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Device Status</span>
+              <span class="status-pill {{ 'online' if device_online == 'online' else 'offline' if device_online == 'offline' else 'unknown' }}" id="deviceStatus">
+                {% if device_online == 'online' %}Online
+                {% elif device_online == 'offline' %}Offline
+                {% else %}Unknown
+                {% endif %}
+              </span>
+            </div>
+          </div>
+
+          <!-- Rooms Grid -->
+          {% if rooms %}
+          <div class="rooms-grid">
+            {% for room in rooms %}
+            {% set room_devices = by_room.get(room, []) %}
+            <div class="room-card" data-room="{{ room }}" onclick="showRoom('{{ room }}')">
+              <span class="room-icon">
+                {% if room == 'bedroom' %}🛏️
+                {% elif room == 'living' or room == 'livingroom' %}🛋️
+                {% elif room == 'kitchen' %}🍳
+                {% elif room == 'bathroom' %}🚿
+                {% elif room == 'garage' %}🚗
+                {% elif room == 'office' %}💼
+                {% elif room == 'dining' %}🍽️
+                {% elif room == 'guest' %}🚪
+                {% else %}🏠
+                {% endif %}
+              </span>
+              <p class="room-name">{{ room|capitalize }}</p>
+              <p class="room-device-count">{{ room_devices|length }} {{ 'device' if room_devices|length == 1 else 'devices' }}</p>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon">🏠</div>
+            <h3>No rooms yet</h3>
+            <p>Add a device to get started!</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Room Detail View -->
+        <div id="roomView">
+          <div class="room-info-banner" id="roomInfoBanner">
+            <span class="room-info-icon" id="roomInfoIcon">🏠</span>
+            <div class="room-info-details">
+              <h3 id="roomInfoName">Room</h3>
+              <p id="roomInfoCount">0 devices</p>
+            </div>
+          </div>
+
+          <!-- Room Environment Card (Always visible) -->
+          <div id="roomEnvCard" class="status-card" style="margin-bottom: 20px;">
+            <h3>🌡️ Room Environment</h3>
+            <div class="status-row">
+              <span class="status-label">Temperature</span>
+              <div class="env-reading">
+                <span class="value" id="roomTempValue">—</span>
+                <span class="unit">°C</span>
+              </div>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Humidity</span>
+              <div class="env-reading">
+                <span class="value" id="roomHumValue">—</span>
+                <span class="unit">%</span>
+              </div>
+            </div>
+            <div class="last-updated" id="roomLastUpdated">
+              <span id="sensorTopic" style="display: block; margin-top: 4px; font-size: 11px; color: #999;">
+                Sensor topic: <span id="sensorTopicValue">Not configured</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Add Device Button -->
+          <button class="add-device-btn" onclick="addDeviceToRoom()">
+            <span style="font-size: 24px; margin-right: 8px;">➕</span>
+            Add Device to this Room
+          </button>
+
+          <div id="devicesList">
+            <!-- Devices will be loaded here dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Navigation -->
+      <div class="bottom-nav">
+        <a href="/" class="nav-item active">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">My Home</span>
+        </a>
+        <a href="/rooms" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Rooms</span>
+        </a>
+        <a href="/setup" class="nav-item">
+          <span class="nav-icon">➕</span>
+          <span class="nav-label">Add</span>
+        </a>
+        <span class="nav-item" onclick="window.location.href='/logout'">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-label">Logout</span>
+        </span>
+      </div>
+    </div>
+
+    <script>
+      // Pass server-side data to global scope for app.js
+      window.APP_DATA = {
+        devicesData: {{ by_room|tojson|safe }},
+        deviceStates: {{ device_state|tojson|safe }}
+      };
+    </script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

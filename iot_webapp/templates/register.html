@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Register - IoT Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>Register</h1>
+      <a class="btn" href="/login">Login</a>
+    </header>
+
+    <div class="container" style="max-width: 500px; margin: 50px auto;">
+      <div class="card">
+        <strong>Create Account</strong>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="badge" style="background-color: {{ '#dc3545' if category == 'error' else '#28a745' }}; color: white; margin-top: 12px;">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" action="/register" style="margin-top: 20px;">
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Phone Number</label>
+            <input type="tel" name="phone" required pattern="[0-9]{10}" placeholder="9876543210"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Username</label>
+            <input type="text" name="username" required placeholder="John Doe"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Password</label>
+            <input type="password" name="password" required minlength="6" placeholder="******"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Device ID (Optional)</label>
+            <input type="text" name="device_id" placeholder="DEVICE-1234"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <button type="submit" class="btn" style="width: 100%; padding: 10px; font-size: 16px;">
+            Register
+          </button>
+        </form>
+
+        <div style="margin-top: 16px; text-align: center;">
+          <span class="muted">Already have an account?</span>
+          <a href="/login" style="color: #007bff;">Login</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

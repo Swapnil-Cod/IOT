@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Manage Rooms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+      .setup-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+
+      .room-list {
+        margin-top: 24px;
+      }
+
+      .room-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        background: white;
+        border: 1px solid #e8e8ea;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .room-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .room-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .room-icon {
+        font-size: 32px;
+      }
+
+      .room-details h3 {
+        margin: 0 0 4px 0;
+        font-size: 18px;
+      }
+
+      .room-details .device-count {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .delete-btn {
+        padding: 8px 16px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+
+      .delete-btn:hover {
+        background: #c82333;
+      }
+
+      .delete-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .room-info {
+        flex: 1;
+      }
+
+      .add-room-card {
+        padding: 20px;
+        background: white;
+        border: 2px dashed #d0d0d7;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 24px;
+      }
+
+      .add-room-card:hover {
+        border-color: #007bff;
+        background: #f8f9ff;
+      }
+
+      .add-room-card .icon {
+        font-size: 48px;
+        margin-bottom: 8px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .modal-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e4;
+        border-radius: 8px;
+        margin: 16px 0;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .modal-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 16px;
+      }
+
+      .modal-btn.primary {
+        background: #007bff;
+        color: white;
+      }
+
+      .modal-btn.secondary {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      .message {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+
+      .message.error {
+        background: #ffe6e6;
+        color: #d00;
+        border: 1px solid #ffcccc;
+      }
+
+      .message.success {
+        background: #e6ffe6;
+        color: #0a0;
+        border: 1px solid #ccffcc;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><a href="/" style="text-decoration: none; color: inherit; cursor: pointer;">🏠</a> Manage Rooms</h1>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <a class="btn" href="/">← Home</a>
+      </div>
+    </header>
+
+    <div class="setup-container">
+      <div id="message"></div>
+
+      <div class="add-room-card" onclick="showAddRoomModal()">
+        <div class="icon">➕</div>
+        <h3 style="margin: 0;">Add New Room</h3>
+      </div>
+
+      <div class="room-list" id="roomList">
+        <!-- Rooms will be loaded here -->
+      </div>
+    </div>
+
+    <!-- Add Room Modal with ESP32 Provisioning -->
+    <div id="addRoomModal" class="modal">
+      <div class="modal-content" style="max-width: 500px;">
+        <h3 style="margin-top: 0;">Setup New Room with ESP32</h3>
+
+        <!-- Step Indicator -->
+        <div id="stepIndicator" style="margin-bottom: 20px; text-align: center; color: #666; font-size: 14px;">
+          Step <span id="currentStep">1</span> of 2
+        </div>
+
+        <!-- Step 1: Room Name and WiFi Credentials -->
+        <div id="step1" class="setup-step">
+          <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
+            ⚠️ <strong>Important:</strong> Connect your device to the ESP32 hotspot (starts with "homi") before proceeding.
+          </p>
+
+          <label style="display: block; margin-bottom: 8px; font-weight: 500;">Room Name *</label>
+          <input type="text" id="newRoomName" class="modal-input" placeholder="e.g., bedroom, kitchen" />
+
+          <label style="display: block; margin-bottom: 8px; margin-top: 12px; font-weight: 500;">WiFi SSID *</label>
+          <input type="text" id="wifiSSID" class="modal-input" placeholder="Your home WiFi name" />
+
+          <label style="display: block; margin-bottom: 8px; margin-top: 12px; font-weight: 500;">WiFi Password *</label>
+          <input type="password" id="wifiPassword" class="modal-input" placeholder="Your home WiFi password" />
+
+          <div class="modal-buttons">
+            <button class="modal-btn secondary" onclick="hideAddRoomModal()">Cancel</button>
+            <button class="modal-btn primary" onclick="provisionESP32()" id="provisionBtn">Provision ESP32</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Provisioning Status -->
+        <div id="step2" class="setup-step" style="display: none; text-align: center;">
+          <div class="spinner"></div>
+          <p id="provisioningStatus" style="margin-top: 20px; color: #666;">
+            Connecting to ESP32 and sending WiFi credentials...
+          </p>
+          <p id="provisioningDetails" style="margin-top: 10px; font-size: 13px; color: #999;"></p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let roomsData = { rooms: [], devices: [] };
+
+      const roomIcons = {
+        'living': '🛋️',
+        'bedroom': '🛏️',
+        'kitchen': '🍳',
+        'bathroom': '🚿',
+        'garage': '🚗',
+        'office': '💼',
+        'dining': '🍽️',
+        'guest': '🚪',
+        'default': '🏠'
+      };
+
+      function getRoomIcon(roomName) {
+        return roomIcons[roomName.toLowerCase()] || roomIcons['default'];
+      }
+
+      function showAddRoomModal() {
+        document.getElementById('addRoomModal').classList.add('show');
+        document.getElementById('newRoomName').value = '';
+        document.getElementById('wifiSSID').value = '';
+        document.getElementById('wifiPassword').value = '';
+        document.getElementById('step1').style.display = 'block';
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('currentStep').textContent = '1';
+        document.getElementById('newRoomName').focus();
+      }
+
+      function hideAddRoomModal() {
+        document.getElementById('addRoomModal').classList.remove('show');
+      }
+
+      async function provisionESP32() {
+        const roomName = document.getElementById('newRoomName').value.trim().toLowerCase();
+        const wifiSSID = document.getElementById('wifiSSID').value.trim();
+        const wifiPassword = document.getElementById('wifiPassword').value.trim();
+
+        if (!roomName || !wifiSSID || !wifiPassword) {
+          showMessage('Please fill all fields', 'error');
+          return;
+        }
+
+        // Show step 2 - provisioning status
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+        document.getElementById('currentStep').textContent = '2';
+
+        try {
+          // Step 1: Provision ESP32
+          console.log('🔄 Starting ESP32 provisioning...');
+          document.getElementById('provisioningStatus').textContent = 'Connecting to ESP32 and sending WiFi credentials...';
+          document.getElementById('provisioningDetails').textContent = `SSID: ${wifiSSID}`;
+
+          const provisionPayload = {
+            room_name: roomName,
+            wifi_ssid: wifiSSID,
+            wifi_password: wifiPassword
+          };
+          console.log('📤 Sending provision request:', provisionPayload);
+
+          const provisionResponse = await fetch('/setup/esp32/provision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(provisionPayload)
+          });
+
+          console.log('📥 Provision response status:', provisionResponse.status);
+
+          if (!provisionResponse.ok) {
+            const errorText = await provisionResponse.text();
+            console.error('❌ HTTP error:', provisionResponse.status, errorText);
+            throw new Error(`HTTP ${provisionResponse.status}: ${errorText}`);
+          }
+
+          const provisionData = await provisionResponse.json();
+          console.log('✅ Provision data received:', provisionData);
+
+          if (!provisionData.success) {
+            console.error('❌ Provisioning failed:', provisionData.message);
+            showMessage(provisionData.message || 'ESP32 provisioning failed', 'error');
+            // Go back to step 1
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('currentStep').textContent = '1';
+            return;
+          }
+
+          // Step 2: Create room with ESP32 info
+          console.log('🏠 Creating room with ESP32 info...');
+          document.getElementById('provisioningStatus').textContent = 'ESP32 provisioned successfully! Creating room...';
+          document.getElementById('provisioningDetails').textContent = `MAC: ${provisionData.mac} | Switches: ${provisionData.num_devices}`;
+
+          const roomPayload = {
+            name: roomName,
+            esp32_mac: provisionData.mac,
+            num_switches: provisionData.num_devices,
+            wifi_ssid: wifiSSID
+          };
+          console.log('📤 Creating room:', roomPayload);
+
+          const roomResponse = await fetch('/setup/room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(roomPayload)
+          });
+
+          console.log('📥 Room response status:', roomResponse.status);
+
+          if (!roomResponse.ok) {
+            const errorText = await roomResponse.text();
+            console.error('❌ HTTP error:', roomResponse.status, errorText);
+            throw new Error(`HTTP ${roomResponse.status}: ${errorText}`);
+          }
+
+          const roomData = await roomResponse.json();
+          console.log('✅ Room data received:', roomData);
+
+          if (roomData.success) {
+            console.log('🎉 Room created successfully!');
+            showMessage(`Room "${roomName}" added successfully with ESP32!`, 'success');
+            hideAddRoomModal();
+            loadRooms();
+          } else {
+            console.error('❌ Room creation failed:', roomData.message);
+            showMessage(roomData.message || 'Failed to create room', 'error');
+            // Go back to step 1
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('currentStep').textContent = '1';
+          }
+        } catch (error) {
+          console.error('❌ Provisioning error:', error);
+          console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+
+          let errorMessage = 'Network error. ';
+          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMessage += 'Make sure you\'re connected to the ESP32 hotspot (192.168.4.1).';
+          } else if (error.message.includes('timeout')) {
+            errorMessage += 'Request timed out. ESP32 may be busy or not responding.';
+          } else {
+            errorMessage += error.message;
+          }
+
+          showMessage(errorMessage, 'error');
+          // Go back to step 1
+          document.getElementById('step1').style.display = 'block';
+          document.getElementById('step2').style.display = 'none';
+          document.getElementById('currentStep').textContent = '1';
+        }
+      }
+
+      async function deleteRoom(roomName) {
+        const deviceCount = roomsData.devices.filter(d => d.room === roomName).length;
+
+        if (deviceCount > 0) {
+          if (!confirm(`This room has ${deviceCount} device(s). You must remove all devices before deleting the room. Continue?`)) {
+            return;
+          }
+        } else {
+          if (!confirm(`Delete room "${roomName}"?`)) {
+            return;
+          }
+        }
+
+        try {
+          const response = await fetch(`/room/${encodeURIComponent(roomName)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage('Room deleted successfully!', 'success');
+            loadRooms();
+          } else {
+            showMessage(data.message || 'Failed to delete room', 'error');
+          }
+        } catch (error) {
+          showMessage('Network error. Please try again.', 'error');
+        }
+      }
+
+      async function loadRooms() {
+        try {
+          const response = await fetch('/api/devices');
+          const data = await response.json();
+          roomsData = data;
+
+          const roomList = document.getElementById('roomList');
+
+          if (data.rooms.length === 0) {
+            roomList.innerHTML = '<div class="empty-state">No rooms yet. Click "Add New Room" to get started!</div>';
+            return;
+          }
+
+          let html = '';
+          data.rooms.forEach(roomData => {
+            // Handle both old format (string) and new format (object)
+            const roomName = typeof roomData === 'string' ? roomData : roomData.name;
+            const esp32Mac = typeof roomData === 'object' ? roomData.esp32_mac : null;
+            const numSwitches = typeof roomData === 'object' ? roomData.num_switches : null;
+
+            const deviceCount = data.devices.filter(d => d.room === roomName).length;
+            const hasDevices = deviceCount > 0;
+
+            // Show ESP32 info if available
+            const esp32Info = esp32Mac ? `<div style="font-size: 11px; color: #999; margin-top: 2px;">MAC: ${esp32Mac} | ${numSwitches} switches</div>` : '';
+
+            html += `
+              <div class="room-item" onclick="navigateToRoom('${roomName}')">
+                <div class="room-info">
+                  <div class="room-icon">${getRoomIcon(roomName)}</div>
+                  <div class="room-details">
+                    <h3>${roomName.charAt(0).toUpperCase() + roomName.slice(1)}</h3>
+                    <div class="device-count">${deviceCount} device${deviceCount !== 1 ? 's' : ''}</div>
+                    ${esp32Info}
+                  </div>
+                </div>
+                <button
+                  class="delete-btn"
+                  onclick="event.stopPropagation(); deleteRoom('${roomName}')"
+                  ${hasDevices ? 'title="Remove devices first"' : ''}
+                >
+                  Delete
+                </button>
+              </div>
+            `;
+          });
+
+          roomList.innerHTML = html;
+        } catch (error) {
+          console.error('Error loading rooms:', error);
+          showMessage('Failed to load rooms', 'error');
+        }
+      }
+
+      function navigateToRoom(roomName) {
+        // Redirect to homepage with room pre-selected
+        window.location.href = `/?room=${encodeURIComponent(roomName)}`;
+      }
+
+      function showMessage(text, type) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.className = `message ${type}`;
+        messageDiv.textContent = text;
+        messageDiv.style.display = 'block';
+
+        if (type === 'success') {
+          setTimeout(() => {
+            messageDiv.style.display = 'none';
+          }, 3000);
+        }
+      }
+
+      // Close modal when clicking outside
+      document.getElementById('addRoomModal').addEventListener('click', (e) => {
+        if (e.target.id === 'addRoomModal') {
+          hideAddRoomModal();
+        }
+      });
+
+      // Enter key to add room
+      document.getElementById('newRoomName').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addRoom();
+        }
+      });
+
+      // Load rooms on page load
+      loadRooms();
+    </script>
+  </body>
+</html>

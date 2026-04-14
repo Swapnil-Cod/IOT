@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Login - IoT Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>Login</h1>
+      <a class="btn" href="/register">Register</a>
+    </header>
+
+    <div class="container" style="max-width: 500px; margin: 50px auto;">
+      <div class="card">
+        <strong>Login to IoT Dashboard</strong>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="badge" style="background-color: {{ '#dc3545' if category == 'error' else '#28a745' }}; color: white; margin-top: 12px;">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" action="/login" style="margin-top: 20px;">
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Phone Number</label>
+            <input type="tel" name="phone" required pattern="[0-9]{10}" placeholder="9876543210"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label class="muted" style="display: block; margin-bottom: 4px;">Password</label>
+            <input type="password" name="password" required placeholder="******"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+
+          <button type="submit" class="btn" style="width: 100%; padding: 10px; font-size: 16px;">
+            Login
+          </button>
+        </form>
+
+        <div style="margin-top: 16px; text-align: center;">
+          <span class="muted">Don't have an account?</span>
+          <a href="/register" style="color: #007bff;">Register</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

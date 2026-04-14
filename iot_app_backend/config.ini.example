@@ -1,0 +1,19 @@
+[flask]
+# Security Keys - CHANGE THESE IN PRODUCTION!
+SECRET_KEY = dev-secret-key-change-in-production
+JWT_SECRET_KEY = jwt-secret-key-change-in-production
+
+# JWT Token Configuration
+# Access token expires after this many minutes (default: 60 = 1 hour)
+JWT_ACCESS_TOKEN_EXPIRES_MINUTES = 60
+
+# Refresh token expires after this many days (default: 30 days)
+JWT_REFRESH_TOKEN_EXPIRES_DAYS = 30
+
+# Admin Panel Credentials
+ADMIN_USERNAME = admin
+ADMIN_PASSWORD = adminpass
+
+# Database Configuration
+SQLALCHEMY_DATABASE_URI = sqlite:///db.sqlite3
+SQLALCHEMY_TRACK_MODIFICATIONS = False

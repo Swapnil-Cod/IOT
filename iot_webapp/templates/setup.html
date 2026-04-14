@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Add Device</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+      .setup-container {
+        max-width: 480px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+
+      .setup-card {
+        background: #fff;
+        border: 1px solid #e8e8ea;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+
+      .setup-header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .setup-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #333;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e4;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+
+      .device-type-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .device-type-option {
+        padding: 20px;
+        border: 2px solid #e0e0e4;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+      }
+
+      .device-type-option:hover {
+        border-color: #007bff;
+        background: #f8f9ff;
+      }
+
+      .device-type-option.selected {
+        border-color: #007bff;
+        background: #e7f3ff;
+      }
+
+      .device-type-icon {
+        font-size: 40px;
+        margin-bottom: 8px;
+      }
+
+      .device-type-label {
+        font-weight: 500;
+        color: #333;
+      }
+
+      .room-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+      }
+
+      .room-chip {
+        padding: 8px 16px;
+        border: 2px solid #e0e0e4;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+        font-size: 14px;
+      }
+
+      .room-chip:hover {
+        border-color: #007bff;
+        background: #f8f9ff;
+      }
+
+      .room-chip.selected {
+        border-color: #007bff;
+        background: #007bff;
+        color: white;
+      }
+
+      .add-room-btn {
+        padding: 8px 16px;
+        border: 2px dashed #d0d0d7;
+        border-radius: 20px;
+        cursor: pointer;
+        background: white;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .add-room-btn:hover {
+        border-color: #007bff;
+        color: #007bff;
+      }
+
+      .primary-btn {
+        width: 100%;
+        padding: 14px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .primary-btn:hover {
+        background: #0056b3;
+      }
+
+      .primary-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      .message {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+
+      .message.error {
+        background: #ffe6e6;
+        color: #d00;
+        border: 1px solid #ffcccc;
+      }
+
+      .message.success {
+        background: #e6ffe6;
+        color: #0a0;
+        border: 1px solid #ccffcc;
+      }
+
+      .discovering {
+        text-align: center;
+        padding: 40px;
+      }
+
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .modal-input {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #e0e0e4;
+        border-radius: 8px;
+        margin: 16px 0;
+        box-sizing: border-box;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .modal-btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .modal-btn.primary {
+        background: #007bff;
+        color: white;
+      }
+
+      .modal-btn.secondary {
+        background: #f0f0f0;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="setup-container">
+      <a href="/" class="back-link">← Back to Home</a>
+
+      <div class="setup-card">
+        <div class="setup-header">
+          <div class="setup-icon">💡</div>
+          <h2 style="margin: 0 0 8px 0;">Add New Device</h2>
+          <p class="muted" style="margin: 0;">Set up your smart home device</p>
+        </div>
+
+        <div id="message"></div>
+
+        <form id="setupForm">
+          <div class="form-group">
+            <label class="form-label">Device Name</label>
+            <input type="text" id="deviceName" class="form-input" placeholder="e.g., Living Room Light" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Device Type</label>
+            <div class="device-type-selector">
+              <div class="device-type-option" data-type="light">
+                <div class="device-type-icon">💡</div>
+                <div class="device-type-label">Light</div>
+              </div>
+              <div class="device-type-option" data-type="fan">
+                <div class="device-type-icon">🌀</div>
+                <div class="device-type-label">Fan</div>
+              </div>
+              <div class="device-type-option" data-type="ac">
+                <div class="device-type-icon">❄️</div>
+                <div class="device-type-label">AC</div>
+              </div>
+              <div class="device-type-option" data-type="tv">
+                <div class="device-type-icon">📺</div>
+                <div class="device-type-label">TV</div>
+              </div>
+              <div class="device-type-option" data-type="socket">
+                <div class="device-type-icon">🔌</div>
+                <div class="device-type-label">Socket</div>
+              </div>
+              <div class="device-type-option" data-type="heater">
+                <div class="device-type-icon">🔥</div>
+                <div class="device-type-label">Heater</div>
+              </div>
+              <div class="device-type-option" data-type="camera">
+                <div class="device-type-icon">📷</div>
+                <div class="device-type-label">Camera</div>
+              </div>
+              <div class="device-type-option" data-type="speaker">
+                <div class="device-type-icon">🔊</div>
+                <div class="device-type-label">Speaker</div>
+              </div>
+              <div class="device-type-option" data-type="others">
+                <div class="device-type-icon">⚙️</div>
+                <div class="device-type-label">Others</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Room</label>
+            <div class="room-selector" id="roomSelector">
+              {% for room in rooms %}
+              <div class="room-chip" data-room="{{ room }}">{{ room|capitalize }}</div>
+              {% endfor %}
+              <button type="button" class="add-room-btn" id="addRoomBtn">+ Add Room</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Switch Number <span style="color: #dc3545;">*</span></label>
+            <div class="room-selector" id="switchSelector">
+              <div class="room-chip switch-chip" data-switch="S1">S1</div>
+              <div class="room-chip switch-chip" data-switch="S2">S2</div>
+              <div class="room-chip switch-chip" data-switch="S3">S3</div>
+              <div class="room-chip switch-chip" data-switch="S4">S4</div>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 8px;">Assign this device to a physical switch number</p>
+          </div>
+
+          <button type="submit" class="primary-btn" id="submitBtn">Add Device</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Room Modal -->
+    <div id="addRoomModal" class="modal">
+      <div class="modal-content">
+        <h3 style="margin-top: 0;">Add New Room</h3>
+        <input type="text" id="newRoomName" class="modal-input" placeholder="e.g., bedroom, kitchen" />
+        <div class="modal-buttons">
+          <button class="modal-btn secondary" id="cancelRoomBtn">Cancel</button>
+          <button class="modal-btn primary" id="confirmRoomBtn">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let selectedType = null;
+      let selectedRoom = null;
+      let selectedSwitch = null;
+
+      // Check if room parameter is in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const preSelectedRoom = urlParams.get('room');
+
+      // Device type selection
+      document.querySelectorAll('.device-type-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.device-type-option').forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          selectedType = option.dataset.type;
+        });
+      });
+
+      // Room selection
+      function attachRoomListeners() {
+        document.querySelectorAll('.room-chip:not(.switch-chip)').forEach(chip => {
+          chip.addEventListener('click', () => {
+            // If pre-selected room exists, don't allow changing
+            if (preSelectedRoom) {
+              return;
+            }
+            document.querySelectorAll('.room-chip:not(.switch-chip)').forEach(c => c.classList.remove('selected'));
+            chip.classList.add('selected');
+            selectedRoom = chip.dataset.room;
+          });
+        });
+      }
+      attachRoomListeners();
+
+      // Switch selection
+      document.querySelectorAll('.switch-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.switch-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          selectedSwitch = chip.dataset.switch;
+        });
+      });
+
+      // Auto-select room if provided in URL
+      if (preSelectedRoom) {
+        selectedRoom = preSelectedRoom;
+        document.querySelectorAll('.room-chip:not(.switch-chip)').forEach(chip => {
+          if (chip.dataset.room === preSelectedRoom) {
+            chip.classList.add('selected');
+          } else {
+            // Hide other rooms when one is pre-selected
+            chip.style.display = 'none';
+          }
+        });
+        // Also hide the "Add Room" button
+        document.getElementById('addRoomBtn').style.display = 'none';
+      }
+
+      // Add room modal
+      const addRoomModal = document.getElementById('addRoomModal');
+      const addRoomBtn = document.getElementById('addRoomBtn');
+      const cancelRoomBtn = document.getElementById('cancelRoomBtn');
+      const confirmRoomBtn = document.getElementById('confirmRoomBtn');
+      const newRoomName = document.getElementById('newRoomName');
+
+      addRoomBtn.addEventListener('click', () => {
+        addRoomModal.classList.add('show');
+        newRoomName.value = '';
+        newRoomName.focus();
+      });
+
+      cancelRoomBtn.addEventListener('click', () => {
+        addRoomModal.classList.remove('show');
+      });
+
+      confirmRoomBtn.addEventListener('click', async () => {
+        const roomName = newRoomName.value.trim().toLowerCase();
+        if (!roomName) {
+          showMessage('Please enter a room name', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch('/setup/room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: roomName })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Add new room chip
+            const roomSelector = document.getElementById('roomSelector');
+            const newChip = document.createElement('div');
+            newChip.className = 'room-chip';
+            newChip.dataset.room = roomName;
+            newChip.textContent = roomName.charAt(0).toUpperCase() + roomName.slice(1);
+            roomSelector.insertBefore(newChip, addRoomBtn);
+            attachRoomListeners();
+
+            addRoomModal.classList.remove('show');
+            showMessage('Room added successfully!', 'success');
+          } else {
+            showMessage(data.message || 'Failed to add room', 'error');
+          }
+        } catch (error) {
+          showMessage('Network error. Please try again.', 'error');
+        }
+      });
+
+      // Form submission
+      document.getElementById('setupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const deviceName = document.getElementById('deviceName').value.trim();
+
+        if (!deviceName || !selectedType || !selectedRoom || !selectedSwitch) {
+          showMessage('Please fill all required fields (including switch number)', 'error');
+          return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding Device...';
+
+        try {
+          const payload = {
+            name: deviceName,
+            type: selectedType,
+            room: selectedRoom,
+            switch: selectedSwitch
+          };
+
+          const response = await fetch('/setup/device', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage('Device added successfully! Redirecting...', 'success');
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 1500);
+          } else {
+            showMessage(data.message || 'Failed to add device', 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Device';
+          }
+        } catch (error) {
+          showMessage('Network error. Please try again.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Add Device';
+        }
+      });
+
+      function showMessage(text, type) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.className = `message ${type}`;
+        messageDiv.textContent = text;
+        messageDiv.style.display = 'block';
+
+        if (type === 'success') {
+          setTimeout(() => {
+            messageDiv.style.display = 'none';
+          }, 3000);
+        }
+      }
+
+      // Close modal when clicking outside
+      addRoomModal.addEventListener('click', (e) => {
+        if (e.target === addRoomModal) {
+          addRoomModal.classList.remove('show');
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+site_name: "ESP32 Firmware Documentation"
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: src/getting-started/installation.md
+      - Quickstart: src/getting-started/quickstart.md
+  - Architecture:
+      - Components: src/architecture/components.md
+      - Messaging: src/architecture/messaging.md
+      - Security: src/architecture/security.md
+  - Development:
+      - Device Lifecycle: src/development/device-lifecycle.md
+      - Implementation: src/development/implementation.md
+      - Testing: src/development/testing.md
+  - Deployment:
+      - Hosting: src/deployment/hosting.md
+      - Costs: src/deployment/costs.md
+  - Reference:
+      - API: src/reference/api.md
+      - MQTT Topics: src/reference/mqtt-topics.md
+
+theme:
+  name: material
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite
+  - footnotes
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-repo
+  analytics:
+    google: "UA-XXXXXXXXX-X"

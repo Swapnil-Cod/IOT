@@ -1,0 +1,196 @@
+package com.iot.distancemonitor
+
+import android.content.Context
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
+import org.eclipse.paho.client.mqttv3.*
+import org.json.JSONObject
+
+class MainActivity : AppCompatActivity() {
+
+    // -------- CHANGE THESE TO MATCH YOUR SETUP --------
+    private val brokerIp   = "192.168.1.17"
+    private val brokerPort = 1883
+    private val topic      = "sensor/ultrasonic/distance"
+    // ---------------------------------------------------
+
+    private val brokerUri  = "tcp://$brokerIp:$brokerPort"
+    private val clientId   = "android-distance-${System.currentTimeMillis()}"
+
+    private var mqttClient: MqttAsyncClient? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Tank depth entered manually by user
+    private var tankDepthCm: Float = 500f
+
+    private lateinit var tvDistance: TextView
+    private lateinit var tvWaterLevel: TextView
+    private lateinit var tvPercent: TextView
+    private lateinit var tvStatus: TextView
+    private lateinit var tvBrokerInfo: TextView
+    private lateinit var tvTopic: TextView
+    private lateinit var statusDot: View
+    private lateinit var btnConnect: MaterialButton
+    private lateinit var btnSetDepth: MaterialButton
+    private lateinit var etTankDepth: EditText
+    private lateinit var waterTankView: WaterTankView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        tvDistance    = findViewById(R.id.tvDistance)
+        tvWaterLevel = findViewById(R.id.tvWaterLevel)
+        tvPercent    = findViewById(R.id.tvPercent)
+        tvStatus     = findViewById(R.id.tvStatus)
+        tvBrokerInfo = findViewById(R.id.tvBrokerInfo)
+        tvTopic      = findViewById(R.id.tvTopic)
+        statusDot    = findViewById(R.id.statusDot)
+        btnConnect   = findViewById(R.id.btnConnect)
+        btnSetDepth  = findViewById(R.id.btnSetDepth)
+        etTankDepth  = findViewById(R.id.etTankDepth)
+        waterTankView = findViewById(R.id.waterTankView)
+
+        tvBrokerInfo.text = "Broker: $brokerIp:$brokerPort"
+        tvTopic.text = "Topic: $topic"
+
+        // Restore previously saved tank depth
+        val prefs = getSharedPreferences("tank_prefs", Context.MODE_PRIVATE)
+        tankDepthCm = prefs.getFloat("tank_depth", 500f)
+        etTankDepth.setText(tankDepthCm.toInt().toString())
+
+        // User manually sets tank depth
+        btnSetDepth.setOnClickListener {
+            val input = etTankDepth.text.toString().toFloatOrNull()
+            if (input != null && input > 0) {
+                tankDepthCm = input
+                prefs.edit().putFloat("tank_depth", tankDepthCm).apply()
+                Toast.makeText(this, "Tank depth set to ${tankDepthCm.toInt()} cm", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Enter a valid depth", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnConnect.setOnClickListener {
+            if (mqttClient?.isConnected == true) {
+                disconnect()
+            } else {
+                connect()
+            }
+        }
+    }
+
+    private fun connect() {
+        updateStatus("Connecting...", false)
+
+        try {
+            mqttClient = MqttAsyncClient(brokerUri, clientId, null)
+            mqttClient?.setCallback(object : MqttCallbackExtended {
+                override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+                    mainHandler.post {
+                        updateStatus("Connected", true)
+                        btnConnect.text = "Disconnect"
+                    }
+                    mqttClient?.subscribe(topic, 0)
+                }
+
+                override fun connectionLost(cause: Throwable?) {
+                    mainHandler.post {
+                        updateStatus("Disconnected", false)
+                        btnConnect.text = "Connect"
+                        resetDisplays()
+                    }
+                }
+
+                override fun messageArrived(topic: String?, message: MqttMessage?) {
+                    val payload = message?.toString() ?: return
+                    mainHandler.post { handleMessage(payload) }
+                }
+
+                override fun deliveryComplete(token: IMqttDeliveryToken?) {}
+            })
+
+            val options = MqttConnectOptions().apply {
+                isCleanSession = true
+                connectionTimeout = 10
+                keepAliveInterval = 30
+                isAutomaticReconnect = true
+            }
+
+            mqttClient?.connect(options)
+        } catch (e: Exception) {
+            mainHandler.post {
+                updateStatus("Error: ${e.message}", false)
+            }
+        }
+    }
+
+    private fun disconnect() {
+        try {
+            mqttClient?.disconnect()
+            mqttClient?.close()
+            mqttClient = null
+        } catch (_: Exception) {}
+
+        updateStatus("Disconnected", false)
+        btnConnect.text = "Connect"
+        resetDisplays()
+    }
+
+    private fun handleMessage(payload: String) {
+        try {
+            val json = JSONObject(payload)
+            if (json.has("distance_cm")) {
+                val sensorDistance = json.getDouble("distance_cm").toFloat()
+
+                // Sensor measures distance from top of tank to water surface
+                // Water level = tank depth - sensor distance
+                val waterLevel = (tankDepthCm - sensorDistance).coerceIn(0f, tankDepthCm)
+                val percent = if (tankDepthCm > 0) (waterLevel / tankDepthCm) * 100f else 0f
+
+                tvDistance.text = String.format("%.1f cm", sensorDistance)
+                tvWaterLevel.text = String.format("%.1f cm", waterLevel)
+                tvPercent.text = String.format("%.1f%%", percent)
+                waterTankView.waterLevelPercent = percent
+
+            } else if (json.has("error")) {
+                tvDistance.text = "ERR"
+                tvWaterLevel.text = "ERR"
+                tvPercent.text = "--%"
+            }
+        } catch (_: Exception) {
+            tvDistance.text = "?"
+            tvWaterLevel.text = "?"
+            tvPercent.text = "--%"
+        }
+    }
+
+    private fun resetDisplays() {
+        tvDistance.text = "-- cm"
+        tvWaterLevel.text = "-- cm"
+        tvPercent.text = "--%"
+        waterTankView.waterLevelPercent = 0f
+    }
+
+    private fun updateStatus(text: String, connected: Boolean) {
+        tvStatus.text = text
+        val color = if (connected) {
+            getColor(R.color.status_connected)
+        } else {
+            getColor(R.color.status_disconnected)
+        }
+        statusDot.setBackgroundColor(color)
+    }
+
+    override fun onDestroy() {
+        disconnect()
+        super.onDestroy()
+    }
+}
