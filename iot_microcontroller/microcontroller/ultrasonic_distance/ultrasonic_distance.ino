@@ -144,5 +144,5 @@ void loop() {
   Serial.print(": ");
   Serial.println(payload);
 
-  delay(250);
+  delay(10000);
 }
