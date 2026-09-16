@@ -12,6 +12,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import org.eclipse.paho.client.mqttv3.*
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import javax.net.ssl.SSLContext
@@ -24,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private val brokerIp   = "13.127.43.131"
     private val brokerPort = 8883
     private val topic      = "sensor/ultrasonic/distance"
+    private val statusTopic = "sensor/ultrasonic/status"  // device online/offline, via MQTT Last Will
     // Credentials come from local.properties (mqtt.user / mqtt.password), not checked into VCS
     private val mqttUser   = BuildConfig.MQTT_USER
     private val mqttPass   = BuildConfig.MQTT_PASSWORD
@@ -31,6 +35,7 @@ class MainActivity : AppCompatActivity() {
 
     private val brokerUri  = "ssl://$brokerIp:$brokerPort"
     private val clientId   = "android-distance-${System.currentTimeMillis()}"
+    private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
     private var mqttClient: MqttAsyncClient? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -42,9 +47,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvWaterLevel: TextView
     private lateinit var tvPercent: TextView
     private lateinit var tvStatus: TextView
-    private lateinit var tvBrokerInfo: TextView
-    private lateinit var tvTopic: TextView
+    private lateinit var tvLastUpdated: TextView
+    private lateinit var tvDeviceStatus: TextView
     private lateinit var statusDot: View
+    private lateinit var deviceStatusDot: View
     private lateinit var btnConnect: MaterialButton
     private lateinit var btnSetDepth: MaterialButton
     private lateinit var etTankDepth: EditText
@@ -58,16 +64,14 @@ class MainActivity : AppCompatActivity() {
         tvWaterLevel = findViewById(R.id.tvWaterLevel)
         tvPercent    = findViewById(R.id.tvPercent)
         tvStatus     = findViewById(R.id.tvStatus)
-        tvBrokerInfo = findViewById(R.id.tvBrokerInfo)
-        tvTopic      = findViewById(R.id.tvTopic)
+        tvLastUpdated = findViewById(R.id.tvLastUpdated)
+        tvDeviceStatus = findViewById(R.id.tvDeviceStatus)
         statusDot    = findViewById(R.id.statusDot)
+        deviceStatusDot = findViewById(R.id.deviceStatusDot)
         btnConnect   = findViewById(R.id.btnConnect)
         btnSetDepth  = findViewById(R.id.btnSetDepth)
         etTankDepth  = findViewById(R.id.etTankDepth)
         waterTankView = findViewById(R.id.waterTankView)
-
-        tvBrokerInfo.text = "Broker: $brokerIp:$brokerPort"
-        tvTopic.text = "Topic: $topic"
 
         // Restore previously saved tank depth
         val prefs = getSharedPreferences("tank_prefs", Context.MODE_PRIVATE)
@@ -107,6 +111,7 @@ class MainActivity : AppCompatActivity() {
                         btnConnect.text = "Disconnect"
                     }
                     mqttClient?.subscribe(topic, 0)
+                    mqttClient?.subscribe(statusTopic, 1)
                 }
 
                 override fun connectionLost(cause: Throwable?) {
@@ -119,7 +124,10 @@ class MainActivity : AppCompatActivity() {
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
                     val payload = message?.toString() ?: return
-                    mainHandler.post { handleMessage(payload) }
+                    when (topic) {
+                        this@MainActivity.topic -> mainHandler.post { handleMessage(payload) }
+                        statusTopic -> mainHandler.post { handleDeviceStatus(payload) }
+                    }
                 }
 
                 override fun deliveryComplete(token: IMqttDeliveryToken?) {}
@@ -187,6 +195,7 @@ class MainActivity : AppCompatActivity() {
                 tvWaterLevel.text = String.format("%.1f cm", waterLevel)
                 tvPercent.text = String.format("%.1f%%", percent)
                 waterTankView.waterLevelPercent = percent
+                tvLastUpdated.text = "Last updated: ${timeFormatter.format(Date())}"
 
             } else if (json.has("error")) {
                 tvDistance.text = "ERR"
@@ -200,11 +209,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleDeviceStatus(payload: String) {
+        val online = payload.trim().equals("online", ignoreCase = true)
+        tvDeviceStatus.text = if (online) "Device: Online" else "Device: Offline"
+        deviceStatusDot.setBackgroundColor(
+            getColor(if (online) R.color.status_connected else R.color.status_disconnected)
+        )
+    }
+
     private fun resetDisplays() {
         tvDistance.text = "-- cm"
         tvWaterLevel.text = "-- cm"
         tvPercent.text = "--%"
         waterTankView.waterLevelPercent = 0f
+        tvLastUpdated.text = "Last updated: --"
+        tvDeviceStatus.text = "Device: --"
+        deviceStatusDot.setBackgroundColor(getColor(R.color.text_secondary))
     }
 
     private fun updateStatus(text: String, connected: Boolean) {

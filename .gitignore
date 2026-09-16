@@ -20,3 +20,6 @@ __pycache__/
 
 # Env files
 .env
+
+# Firmware secrets (WiFi/MQTT credentials) — see secrets.h.example for the template
+**/secrets.h
