@@ -1,0 +1,4 @@
+sdk.dir=/path/to/Android/Sdk
+
+mqtt.user=your_mqtt_username
+mqtt.password=your_mqtt_password

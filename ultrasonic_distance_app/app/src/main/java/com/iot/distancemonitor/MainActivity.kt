@@ -12,16 +12,24 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import org.eclipse.paho.client.mqttv3.*
 import org.json.JSONObject
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
 
 class MainActivity : AppCompatActivity() {
 
     // -------- CHANGE THESE TO MATCH YOUR SETUP --------
-    private val brokerIp   = "192.168.1.17"
-    private val brokerPort = 1883
+    private val brokerIp   = "13.127.43.131"
+    private val brokerPort = 8883
     private val topic      = "sensor/ultrasonic/distance"
+    // Credentials come from local.properties (mqtt.user / mqtt.password), not checked into VCS
+    private val mqttUser   = BuildConfig.MQTT_USER
+    private val mqttPass   = BuildConfig.MQTT_PASSWORD
     // ---------------------------------------------------
 
-    private val brokerUri  = "tcp://$brokerIp:$brokerPort"
+    private val brokerUri  = "ssl://$brokerIp:$brokerPort"
     private val clientId   = "android-distance-${System.currentTimeMillis()}"
 
     private var mqttClient: MqttAsyncClient? = null
@@ -122,6 +130,9 @@ class MainActivity : AppCompatActivity() {
                 connectionTimeout = 10
                 keepAliveInterval = 30
                 isAutomaticReconnect = true
+                userName = mqttUser
+                password = mqttPass.toCharArray()
+                socketFactory = tlsSocketFactory()
             }
 
             mqttClient?.connect(options)
@@ -130,6 +141,23 @@ class MainActivity : AppCompatActivity() {
                 updateStatus("Error: ${e.message}", false)
             }
         }
+    }
+
+    private fun tlsSocketFactory(): SSLSocketFactory {
+        val cert = resources.openRawResource(R.raw.ca).use {
+            CertificateFactory.getInstance("X.509").generateCertificate(it)
+        }
+        val trustStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            load(null, null)
+            setCertificateEntry("mqtt-ca", cert)
+        }
+        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply {
+            init(trustStore)
+        }
+        val sslContext = SSLContext.getInstance("TLSv1.2").apply {
+            init(null, tmf.trustManagers, null)
+        }
+        return sslContext.socketFactory
     }
 
     private fun disconnect() {
